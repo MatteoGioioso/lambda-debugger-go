@@ -1,7 +1,6 @@
 package debugger
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/go-delve/delve/service"
 	"github.com/go-delve/delve/service/api"
@@ -29,15 +28,35 @@ func command(command string, args ...string) error {
 	return goBuild.Run()
 }
 
-func Start() error {
-	addr := "127.0.0.1:9229"
-	listener, err := net.Listen("tcp", addr)
+type Variable struct {
+	Name  string      `json:"name"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+}
+
+type deb struct {
+	client         service.Client
+	server         service.Server
+	address        string
+	binaryFileName string
+	sourceFileName string
+}
+
+func New(source, binary string) *deb {
+	return &deb{
+		binaryFileName: binary,
+		sourceFileName: source,
+		address:        "127.0.0.1:9229",
+	}
+}
+
+func (d *deb) InitServer() error {
+	listener, err := net.Listen("tcp", d.address)
 	if err != nil {
 		return err
 	}
 
-	debugName := "sample"
-	processArgs := []string{debugName}
+	processArgs := []string{d.binaryFileName}
 
 	server := rpccommon.NewServer(&service.Config{
 		Listener:           listener,
@@ -46,7 +65,6 @@ func Start() error {
 		APIVersion:         2,
 		CheckLocalConnUser: false,
 		Debugger: debugger.Config{
-			WorkingDir:     "",
 			Backend:        "default",
 			CheckGoVersion: false,
 		},
@@ -56,54 +74,85 @@ func Start() error {
 		return err
 	}
 
-	path, err := filepath.Abs("sample.go")
+	return nil
+}
+
+func (d *deb) InitClient() error {
+	client := rpc2.NewClient(d.address)
+	d.client = client
+	return nil
+}
+
+func (d deb) AddBreakpoint(line int) error {
+	path, err := filepath.Abs(d.sourceFileName)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(path)
-
-	client := rpc2.NewClient(addr)
-	_, err = client.CreateBreakpoint(&api.Breakpoint{
-		Line: 6,
+	_, err = d.client.CreateBreakpoint(&api.Breakpoint{
+		Line: line,
 		File: path,
 	})
 	if err != nil {
 		return err
 	}
 
-	state, err := client.GetState()
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
-	variables, err := client.ListLocalVariables(
+func (d deb) GetClient() service.Client {
+	return d.client
+}
+
+func (d deb) GetLocalVariables(goRoutineID int) ([]Variable, error) {
+	variables, err := d.client.ListLocalVariables(
 		api.EvalScope{
-			GoroutineID:  state.CurrentThread.GoroutineID,
-			Frame:        0,
-			DeferredCall: 0,
+			GoroutineID: goRoutineID,
+			Frame:       0,
 		},
-		api.LoadConfig{},
+		api.LoadConfig{
+			FollowPointers:     true,
+			MaxStructFields:    -1,
+			MaxVariableRecurse: 1,
+			MaxStringLen:       100,
+			MaxArrayValues:     100,
+		},
 	)
+
+	vars := make([]Variable, 0)
+	for _, variable := range variables {
+		vars = append(vars, Variable{
+			Name:  variable.Name,
+			Type:  variable.RealType,
+			Value: variable.Value,
+		})
+	}
+
+	return vars, err
+}
+
+func (d deb) GetStackTrace(goRoutineID int) error {
+	stackTraceOpts := api.StacktraceOptions(0)
+	loadConfig := &api.LoadConfig{}
+	stacktrace, err := d.client.Stacktrace(goRoutineID, 50, stackTraceOpts, loadConfig)
 	if err != nil {
 		return err
 	}
-	bytes, _ := json.Marshal(variables)
-	fmt.Printf("Thread: %+v\n", string(bytes))
 
-	//stackTraceOpts := api.StacktraceOptions(0)
-	//loadConfig := &api.LoadConfig{}
-	//stacktrace, err := client.Stacktrace(state.CurrentThread.GoroutineID, 10, stackTraceOpts, loadConfig)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//marshal, err := json.Marshal(stacktrace)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//fmt.Printf("Stack trance: %+v\n", string(marshal))
+	fmt.Println(stacktrace)
 
 	return nil
+}
+
+func (d deb) Continue() *api.DebuggerState {
+	state := <-d.client.Continue()
+	return state
+}
+
+func (d deb) Step() (*api.DebuggerState, error) {
+	step, err := d.client.Step()
+	if err != nil {
+		return &api.DebuggerState{}, err
+	}
+
+	return step, err
 }
