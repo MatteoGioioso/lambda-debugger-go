@@ -8,25 +8,8 @@ import (
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/go-delve/delve/service/rpccommon"
 	"net"
-	"os"
-	"os/exec"
 	"path/filepath"
 )
-
-// /go-delve/delve@v1.5.1/pkg/gobuild/gobuild.go
-func GoBuild(debugName string) error {
-	args := []string{"-o", debugName}
-	return command("build", args...)
-}
-
-func command(command string, args ...string) error {
-	allArgs := []string{command}
-	allArgs = append(allArgs, args...)
-	goBuild := exec.Command("go", allArgs...)
-	goBuild.Stderr = os.Stderr
-	goBuild.Stdout = os.Stdout
-	return goBuild.Run()
-}
 
 type Variable struct {
 	Name  string      `json:"name"`
@@ -50,7 +33,7 @@ func New(source, binary string) *deb {
 	}
 }
 
-func (d *deb) InitServer() error {
+func (d *deb) InitServer(pid int) error {
 	listener, err := net.Listen("tcp", d.address)
 	if err != nil {
 		return err
@@ -67,6 +50,7 @@ func (d *deb) InitServer() error {
 		Debugger: debugger.Config{
 			Backend:        "default",
 			CheckGoVersion: false,
+			AttachPid: pid,
 		},
 	})
 
@@ -155,4 +139,16 @@ func (d deb) Step() (*api.DebuggerState, error) {
 	}
 
 	return step, err
+}
+
+func (d deb) Clean() error {
+	if err := d.client.Detach(true); err != nil {
+		return err
+	}
+
+	if err := d.server.Stop(); err != nil {
+		return err
+	}
+
+	return nil
 }

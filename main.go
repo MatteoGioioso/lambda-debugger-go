@@ -2,29 +2,58 @@ package main
 
 import (
 	"fmt"
-	"lambda-debugger-go/debugger"
+	"lambda-debugger-go/ipc"
+	"lambda-debugger-go/utils"
+	"os"
 )
 
-var deb = debugger.New("sample.go", "sample")
+//var deb = debugger.New("handler.go", "handler")
 
 func main() {
-	if err := deb.InitServer(); err != nil {
+	fmt.Println("Started...")
+	//rawPid := os.Getenv("DEBUG_TARGET_PID")
+	ipcClientName := os.Getenv("DEBUG_NAMED_PIPE")
+
+	ipcClient := ipc.New(ipcClientName)
+
+	//pid, err := strconv.Atoi(rawPid)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//
+	//if err := deb.InitServer(pid); err != nil {
+	//	fmt.Println(err)
+	//}
+	//
+	//if err := deb.InitClient(); err != nil {
+	//	fmt.Println(err)
+	//}
+
+	if err := ipcClient.Send("Done"); err != nil {
 		fmt.Println(err)
 	}
 
-	if err := deb.InitClient(); err != nil {
-		fmt.Println(err)
+	callback := func() {
+		//if err := deb.Clean(); err != nil {
+		//	fmt.Println(err)
+		//}
+		if err := ipcClient.Close(); err != nil {
+			fmt.Println(err)
+		}
 	}
 
-	if err := deb.AddBreakpoint(6); err != nil {
-		fmt.Println(err)
-	}
+	utils.OnPanicOrExit(callback)
+	utils.OnSignTerm(callback)
 
-	state := deb.Continue()
-	variables, err := deb.GetLocalVariables(state.CurrentThread.GoroutineID)
-	if err != nil {
-		fmt.Println(err)
-	}
+	//if err := deb.AddBreakpoint(19); err != nil {
+	//	fmt.Println(err)
+	//}
 
-	fmt.Println(variables)
+	//state := deb.Continue()
+	//variables, err := deb.GetLocalVariables(state.CurrentThread.GoroutineID)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//
+	//fmt.Println(variables)
 }
