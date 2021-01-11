@@ -23,15 +23,11 @@ func command(command string, args ...string) error {
 }
 
 func OnPanicOrExit(callback func()) {
-	defer func() {
-		r := recover()
-
-		callback()
-
-		if r != nil {
-			panic(r)
-		}
-	}()
+	r := recover()
+	callback()
+	if r != nil {
+		panic(r)
+	}
 }
 
 func OnSignTerm(callback func()) {
@@ -41,9 +37,7 @@ func OnSignTerm(callback func()) {
 	go func() {
 		sig := <-sigs
 
-		// Log the received signal
-		fmt.Printf("LOG: Caught sig ")
-		fmt.Println(sig)
+		fmt.Println("Signal: ", sig)
 
 		callback()
 

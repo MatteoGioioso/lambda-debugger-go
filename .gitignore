@@ -16,3 +16,4 @@
 # vendor/
 test/handler.go
 test/main
+test/handler

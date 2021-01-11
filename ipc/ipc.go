@@ -1,11 +1,8 @@
 package ipc
 
 import (
-	"bytes"
-	"fmt"
-	"golang.org/x/sys/unix"
-	"io"
 	"os"
+	"time"
 )
 
 // ipc inter-process communication
@@ -23,28 +20,30 @@ func (i ipc) GetName() string {
 	return i.name
 }
 
-func (i ipc) Create() error  {
-	if err := unix.Mkfifo(i.name, 0666); err != nil {
-		return err
-	}
+func (i ipc) Create() error {
+	//if err := unix.Mkfifo(i.name, 0666); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
 
 func (i ipc) WaitForMessage() (string, error) {
-	file, err := os.OpenFile(i.name, os.O_RDONLY, os.ModeNamedPipe)
-	if err != nil {
-		return "", err
-	}
-
-	var buff bytes.Buffer
-	fmt.Println("Waiting for someone to write something")
-	if _, err := io.Copy(&buff, file); err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	return buff.String(), err
+	//file, err := os.OpenFile(i.name, os.O_RDWR, os.ModeNamedPipe)
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//var buff bytes.Buffer
+	//fmt.Println("Waiting for someone to write something")
+	//if _, err := io.Copy(&buff, file); err != nil {
+	//	return "", err
+	//}
+	//defer file.Close()
+	//
+	//return buff.String(), err
+	time.Sleep(1 * time.Second)
+	return "Done", nil
 }
 
 func (i ipc) Send(msg string) error {
@@ -63,9 +62,9 @@ func (i ipc) Send(msg string) error {
 }
 
 func (i ipc) Close() error {
-	if err := os.Remove(i.name); err != nil {
-		return err
-	}
+	//if err := os.Remove(i.name); err != nil {
+	//	return err
+	//}
 
 	return nil
 }

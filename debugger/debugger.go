@@ -1,7 +1,6 @@
 package debugger
 
 import (
-	"fmt"
 	"github.com/go-delve/delve/service"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/debugger"
@@ -10,12 +9,6 @@ import (
 	"net"
 	"path/filepath"
 )
-
-type Variable struct {
-	Name  string      `json:"name"`
-	Type  string      `json:"type"`
-	Value interface{} `json:"value"`
-}
 
 type deb struct {
 	client         service.Client
@@ -87,7 +80,7 @@ func (d deb) GetClient() service.Client {
 	return d.client
 }
 
-func (d deb) GetLocalVariables(goRoutineID int) ([]Variable, error) {
+func (d deb) GetLocalVariables(goRoutineID int) ([]variable, error) {
 	variables, err := d.client.ListLocalVariables(
 		api.EvalScope{
 			GoroutineID: goRoutineID,
@@ -102,29 +95,27 @@ func (d deb) GetLocalVariables(goRoutineID int) ([]Variable, error) {
 		},
 	)
 
-	vars := make([]Variable, 0)
-	for _, variable := range variables {
-		vars = append(vars, Variable{
-			Name:  variable.Name,
-			Type:  variable.RealType,
-			Value: variable.Value,
+	vars := make([]variable, 0)
+	for _, v := range variables {
+		vars = append(vars, variable{
+			Name:  v.Name,
+			Type:  v.RealType,
+			Value: v.Value,
 		})
 	}
 
 	return vars, err
 }
 
-func (d deb) GetStackTrace(goRoutineID int) error {
+func (d deb) GetStackTrace(goRoutineID int) ([]api.Stackframe, error) {
 	stackTraceOpts := api.StacktraceOptions(0)
 	loadConfig := &api.LoadConfig{}
 	stacktrace, err := d.client.Stacktrace(goRoutineID, 50, stackTraceOpts, loadConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Println(stacktrace)
-
-	return nil
+	return stacktrace, err
 }
 
 func (d deb) Continue() *api.DebuggerState {
@@ -132,7 +123,7 @@ func (d deb) Continue() *api.DebuggerState {
 	return state
 }
 
-func (d deb) Step() (*api.DebuggerState, error) {
+func (d deb) StepIn() (*api.DebuggerState, error) {
 	step, err := d.client.Step()
 	if err != nil {
 		return &api.DebuggerState{}, err
@@ -146,9 +137,20 @@ func (d deb) Clean() error {
 		return err
 	}
 
-	if err := d.server.Stop(); err != nil {
-		return err
+	if d.server != nil {
+		if err := d.server.Stop(); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func (d deb) GetState() (*api.DebuggerState, error) {
+	state, err := d.client.GetState()
+	if err != nil {
+		return nil, err
+	}
+
+	return state, nil
 }

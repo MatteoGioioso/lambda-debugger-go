@@ -2,15 +2,21 @@ package wrapper
 
 import (
 	"fmt"
+	"github.com/aws/aws-lambda-go/events"
 	"lambda-debugger-go/ipc"
+	"lambda-debugger-go/logger"
 	"lambda-debugger-go/utils"
 	"os"
 	"os/exec"
 )
 
+var (
+	log = logger.New(true, false)
+	ipcClient = ipc.New("debugger-pipe")
+)
+
 func LambdaWrapper(handler interface{}) interface{} {
 	return func() {
-		ipcClient := ipc.New("debugger-pipe")
 		if err := ipcClient.Create(); err != nil {
 			fmt.Println("ipcClient creation failed: ", err)
 		}
@@ -29,8 +35,11 @@ func LambdaWrapper(handler interface{}) interface{} {
 			fmt.Sprintf("DEBUG_NAMED_PIPE=%v", ipcClient.GetName()),
 		)
 		if err := cmd.Start(); err != nil {
-			fmt.Println("Command start faild: ", err)
+			fmt.Println("Command start failed: ", err)
 		}
+
+		log.Info("Waiting for debugger")
+
 
 		message, err := ipcClient.WaitForMessage()
 		if err != nil {
@@ -38,5 +47,11 @@ func LambdaWrapper(handler interface{}) interface{} {
 		}
 
 		fmt.Println(message)
+
+		f, ok := handler.(func(event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error))
+		if !ok {
+			fmt.Println("NOT a function")
+		}
+		f(events.APIGatewayProxyRequest{})
 	}
 }
