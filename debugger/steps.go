@@ -22,9 +22,9 @@ type currentPosition struct {
 }
 type variables map[string]variable
 type variable struct {
-	Name  string      `json:"name"`
-	Type  string      `json:"type"`
-	Value interface{} `json:"value"`
+	name  string
+	kind  string
+	value interface{}
 }
 
 func NewSteps() *steps {
@@ -38,9 +38,10 @@ func (s steps) AddStep(variables []variable, stackTrace []api.Stackframe) *step 
 	st.file = stackTrace[0].File
 	st.meta.currentPosition.line = stackTrace[0].Line
 	st.meta.name = fmt.Sprintf(
-		"%v at %v",
+		"%v at %v:%v",
 		stackTrace[0].Function.Name(),
 		fileName,
+		stackTrace[0].Line,
 	)
 
 	if st.variables == nil {
@@ -48,7 +49,7 @@ func (s steps) AddStep(variables []variable, stackTrace []api.Stackframe) *step 
 	}
 
 	for _, val := range variables {
-		st.variables[val.Name] = val
+		st.variables[val.name] = val
 	}
 
 	s[st.meta.name] = st

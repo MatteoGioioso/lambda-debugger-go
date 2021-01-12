@@ -98,9 +98,9 @@ func (d deb) GetLocalVariables(goRoutineID int) ([]variable, error) {
 	vars := make([]variable, 0)
 	for _, v := range variables {
 		vars = append(vars, variable{
-			Name:  v.Name,
-			Type:  v.RealType,
-			Value: v.Value,
+			name:  v.Name,
+			kind:  v.RealType,
+			value: v.Value,
 		})
 	}
 
@@ -132,6 +132,10 @@ func (d deb) StepIn() (*api.DebuggerState, error) {
 	return step, err
 }
 
+func (d deb) StepOut() (*api.DebuggerState, error) {
+	return d.client.StepOut()
+}
+
 func (d deb) Clean() error {
 	if err := d.client.Detach(true); err != nil {
 		return err
@@ -153,4 +157,11 @@ func (d deb) GetState() (*api.DebuggerState, error) {
 	}
 
 	return state, nil
+}
+
+type Port interface {
+	GetLocalVariables(goRoutineID int) ([]variable, error)
+	GetStackTrace(goRoutineID int) ([]api.Stackframe, error)
+	StepIn() (*api.DebuggerState, error)
+	StepOut() (*api.DebuggerState, error)
 }

@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"lambda-debugger-go/collector"
 	"lambda-debugger-go/debugger"
 	"lambda-debugger-go/ipc"
 	"lambda-debugger-go/logger"
 	"lambda-debugger-go/utils"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -16,7 +18,56 @@ var (
 	deb           = debugger.New("handler.go", "handler")
 	log           = logger.New(true, true)
 	ipcClient     = ipc.New(ipcClientName)
+	steps         = debugger.NewSteps()
+	files         = debugger.NewFiles()
+	col           = collector.New()
 )
+
+func recordExecution(deb debugger.Port, goroutineID int) {
+	currentGoroutineID := goroutineID
+
+	for {
+		variables, err := deb.GetLocalVariables(currentGoroutineID)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		stackTrace, err := deb.GetStackTrace(currentGoroutineID)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		if strings.Contains(stackTrace[0].File, "lambda-debugger-go") {
+			steps.AddStep(variables, stackTrace)
+			if err := files.Add(stackTrace[0].File); err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			state, err := deb.StepIn()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			goroutineID = state.CurrentThread.GoroutineID
+			continue
+		} else {
+			state, err := deb.StepOut()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			// If no thread is present means that the execution has been finished
+			if state.CurrentThread != nil {
+				goroutineID = state.CurrentThread.GoroutineID
+			}
+			continue
+		}
+	}
+}
 
 func main() {
 	pid, err := strconv.Atoi(rawPid)
@@ -56,19 +107,12 @@ func main() {
 	log.Info("Breakpoint created")
 
 	state := deb.Continue()
+	recordExecution(deb, state.CurrentThread.GoroutineID)
 
-	variables, err := deb.GetLocalVariables(state.CurrentThread.GoroutineID)
-	if err != nil {
+	stepsDTO := debugger.ToStepsDTO(*steps)
+	filesDTO := debugger.ToFilesDTO(*files)
+	if err := col.InjectDebuggerOutputIntoHtml(stepsDTO, filesDTO); err != nil {
 		fmt.Println(err)
 		return
 	}
-	stackTrace, err := deb.GetStackTrace(state.CurrentThread.GoroutineID)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	steps := debugger.NewSteps()
-	steps.AddStep(variables, stackTrace)
-	fmt.Printf("%+v\n", steps)
 }
