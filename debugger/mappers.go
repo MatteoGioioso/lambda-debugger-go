@@ -11,9 +11,10 @@ type StepDTO struct {
 	} `json:"meta"`
 	File      string `json:"file"`
 	Variables map[string]struct {
-		Name  string      `json:"name"`
-		Kind  string      `json:"kind"`
-		Value interface{} `json:"value"`
+		Name     string      `json:"name"`
+		Kind     string      `json:"kind"`
+		Value    interface{} `json:"value"`
+		Pointers []string    `json:"pointers"`
 	} `json:"variables"`
 }
 
@@ -37,20 +38,27 @@ func ToStepsDTO(ss steps) StepsDTO {
 				},
 				Name: stepValue.meta.name,
 			},
-			File:      stepValue.file,
+			File: stepValue.file,
 			Variables: make(map[string]struct {
-				Name  string      `json:"name"`
-				Kind  string      `json:"kind"`
-				Value interface{} `json:"value"`
+				Name     string      `json:"name"`
+				Kind     string      `json:"kind"`
+				Value    interface{} `json:"value"`
+				Pointers []string    `json:"pointers"`
 			}, 0),
 		}
 
 		for varKey, varValue := range stepValue.variables {
 			stepDTO.Variables[varKey] = struct {
-				Name  string      `json:"name"`
-				Kind  string      `json:"kind"`
-				Value interface{} `json:"value"`
-			}{Name: varValue.name, Kind: varValue.kind, Value: varValue.value}
+				Name     string      `json:"name"`
+				Kind     string      `json:"kind"`
+				Value    interface{} `json:"value"`
+				Pointers []string    `json:"pointers"`
+			}{
+				Name: varValue.name,
+				Kind: varValue.kind,
+				Value: varValue.value,
+				Pointers: varValue.pointers,
+			}
 		}
 
 		stepsDTO = append(stepsDTO, stepDTO)

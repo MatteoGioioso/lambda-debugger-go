@@ -46,3 +46,15 @@ func OnSignTerm(callback func()) {
 		os.Exit(0)
 	}()
 }
+
+func SliceContainsString(slice []string, value string) (result bool) {
+	result = false
+	for _, s := range slice {
+		if value == s {
+			result = true
+			break
+		}
+	}
+
+	return
+}

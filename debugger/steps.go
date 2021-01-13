@@ -6,7 +6,7 @@ import (
 	"path"
 )
 
-type steps map[string]step
+type steps []step
 type step struct {
 	meta      meta
 	file      string
@@ -20,39 +20,34 @@ type currentPosition struct {
 	line   int
 	column int
 }
-type variables map[string]variable
-type variable struct {
-	name  string
-	kind  string
-	value interface{}
-}
 
 func NewSteps() *steps {
 	s := make(steps, 0)
 	return &s
 }
 
-func (s steps) AddStep(variables []variable, stackTrace []api.Stackframe) *step {
+func (s *steps) AddStep(variables []api.Variable, stackTrace []api.Stackframe) *step {
 	st := step{}
 	_, fileName := path.Split(stackTrace[0].File)
+	currentLine := stackTrace[0].Line
 	st.file = stackTrace[0].File
-	st.meta.currentPosition.line = stackTrace[0].Line
+	st.meta.currentPosition.line = currentLine
 	st.meta.name = fmt.Sprintf(
 		"%v at %v:%v",
 		stackTrace[0].Function.Name(),
 		fileName,
-		stackTrace[0].Line,
+		currentLine,
 	)
 
-	if st.variables == nil {
-		st.variables = map[string]variable{}
-	}
+	vars := NewVariables()
 
 	for _, val := range variables {
-		st.variables[val.name] = val
+		vars.Add(val, currentLine)
 	}
 
-	s[st.meta.name] = st
+	st.variables = *vars
+
+	*s = append(*s, st)
 
 	return &st
 }

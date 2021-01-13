@@ -125,6 +125,38 @@
 <script>
     let executionCounter = 0;
 
+    /**
+     * @typedef {{pointers: string[], kind: string, value: string}} Variable
+     * @typedef {Object.<string, Variable>} Variables
+     * @param {Variables} variables
+     */
+    function groupNestedObjects(variables) {
+        const grouped = {}
+
+        for (const variablesKey in variables) {
+            const obj = variables[variablesKey]
+            followPointers(obj, variables, grouped)
+        }
+
+        return grouped
+    }
+
+    function followPointers(obj, variables, grouped) {
+        if (obj.pointers && obj.pointers.length) {
+            grouped[obj.name] = {}
+            for (const pointer of obj.pointers) {
+                for (const variablesKey in variables) {
+                    if (variablesKey === pointer){
+                        grouped[obj.name][pointer] = variables[pointer].value || {}
+                        followPointers(variables[pointer], variables, grouped[obj.name])
+                    }
+                }
+            }
+        } else {
+            grouped[obj.name] = obj.value
+        }
+    }
+
     function findCurrentExecution(wholeStack) {
         return wholeStack[executionCounter]
     }
@@ -134,7 +166,8 @@
     }
 
     function setVariables(currentExecution) {
-        const variables = JSON.stringify(currentExecution.variables, null, 2)
+        const nestedObjects = groupNestedObjects(currentExecution.variables);
+        const variables = JSON.stringify(nestedObjects, null, 2)
         document.querySelector('[data-code="variables-window"]').innerHTML = variables
     }
 
@@ -159,7 +192,7 @@
         element.parentNode.style.backgroundColor = 'beige'
     }
 
-    async function renderStep(wholeStack, files) {
+    function renderStep(wholeStack, files) {
         const currentExecution = findCurrentExecution(wholeStack)
         let file = files[currentExecution.file]
 

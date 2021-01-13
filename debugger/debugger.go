@@ -80,7 +80,7 @@ func (d deb) GetClient() service.Client {
 	return d.client
 }
 
-func (d deb) GetLocalVariables(goRoutineID int) ([]variable, error) {
+func (d deb) GetLocalVariables(goRoutineID int) ([]api.Variable, error) {
 	variables, err := d.client.ListLocalVariables(
 		api.EvalScope{
 			GoroutineID: goRoutineID,
@@ -89,22 +89,13 @@ func (d deb) GetLocalVariables(goRoutineID int) ([]variable, error) {
 		api.LoadConfig{
 			FollowPointers:     true,
 			MaxStructFields:    -1,
-			MaxVariableRecurse: 1,
+			MaxVariableRecurse: 5,
 			MaxStringLen:       100,
 			MaxArrayValues:     100,
 		},
 	)
 
-	vars := make([]variable, 0)
-	for _, v := range variables {
-		vars = append(vars, variable{
-			name:  v.Name,
-			kind:  v.RealType,
-			value: v.Value,
-		})
-	}
-
-	return vars, err
+	return variables, err
 }
 
 func (d deb) GetStackTrace(goRoutineID int) ([]api.Stackframe, error) {
@@ -160,7 +151,7 @@ func (d deb) GetState() (*api.DebuggerState, error) {
 }
 
 type Port interface {
-	GetLocalVariables(goRoutineID int) ([]variable, error)
+	GetLocalVariables(goRoutineID int) ([]api.Variable, error)
 	GetStackTrace(goRoutineID int) ([]api.Stackframe, error)
 	StepIn() (*api.DebuggerState, error)
 	StepOut() (*api.DebuggerState, error)
