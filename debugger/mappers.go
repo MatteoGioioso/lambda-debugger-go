@@ -2,62 +2,49 @@ package debugger
 
 type StepsDTO []StepDTO
 type StepDTO struct {
-	Meta struct {
-		CurrentPosition struct {
-			Line   int `json:"line"`
-			Column int `json:"column"`
-		} `json:"currentPosition"`
-		Name string `json:"name"`
-	} `json:"meta"`
-	File      string `json:"file"`
-	Variables map[string]struct {
-		Name     string      `json:"name"`
-		Kind     string      `json:"kind"`
-		Value    interface{} `json:"value"`
-		Pointers []string    `json:"pointers"`
-	} `json:"variables"`
+	Meta      Meta      `json:"meta"`
+	File      string    `json:"file"`
+	Variables Variables `json:"variables"`
+}
+type Meta struct {
+	CurrentPosition CurrentPosition `json:"currentPosition"`
+	Name            string          `json:"name"`
+}
+type CurrentPosition struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+type Variables map[string]Variable
+type Variable struct {
+	Name      string      `json:"name"`
+	Kind      string      `json:"kind"`
+	Value     interface{} `json:"value"`
+	Pointers  []string    `json:"pointers"`
+	HasParent bool        `json:"hasParent"`
 }
 
 func ToStepsDTO(ss steps) StepsDTO {
 	stepsDTO := make(StepsDTO, 0)
 	for _, stepValue := range ss {
 		stepDTO := StepDTO{
-			Meta: struct {
-				CurrentPosition struct {
-					Line   int `json:"line"`
-					Column int `json:"column"`
-				} `json:"currentPosition"`
-				Name string `json:"name"`
-			}{
-				CurrentPosition: struct {
-					Line   int `json:"line"`
-					Column int `json:"column"`
-				}{
+			Meta: Meta{
+				CurrentPosition: CurrentPosition{
 					Line:   stepValue.meta.currentPosition.line,
 					Column: stepValue.meta.currentPosition.column,
 				},
 				Name: stepValue.meta.name,
 			},
-			File: stepValue.file,
-			Variables: make(map[string]struct {
-				Name     string      `json:"name"`
-				Kind     string      `json:"kind"`
-				Value    interface{} `json:"value"`
-				Pointers []string    `json:"pointers"`
-			}, 0),
+			File:      stepValue.file,
+			Variables: make(Variables, 0),
 		}
 
 		for varKey, varValue := range stepValue.variables {
-			stepDTO.Variables[varKey] = struct {
-				Name     string      `json:"name"`
-				Kind     string      `json:"kind"`
-				Value    interface{} `json:"value"`
-				Pointers []string    `json:"pointers"`
-			}{
-				Name: varValue.name,
-				Kind: varValue.kind,
-				Value: varValue.value,
+			stepDTO.Variables[varKey] = Variable{
+				Name:     varValue.name,
+				Kind:     varValue.kind,
+				Value:    varValue.value,
 				Pointers: varValue.pointers,
+				HasParent: varValue.hasParent,
 			}
 		}
 

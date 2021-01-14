@@ -6,6 +6,7 @@ import (
 	"github.com/go-delve/delve/service/debugger"
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/go-delve/delve/service/rpccommon"
+	"lambda-debugger-go/utils"
 	"net"
 	"path/filepath"
 )
@@ -43,7 +44,7 @@ func (d *deb) InitServer(pid int) error {
 		Debugger: debugger.Config{
 			Backend:        "default",
 			CheckGoVersion: false,
-			AttachPid: pid,
+			AttachPid:      pid,
 		},
 	})
 
@@ -81,6 +82,11 @@ func (d deb) GetClient() service.Client {
 }
 
 func (d deb) GetLocalVariables(goRoutineID int) ([]api.Variable, error) {
+	maxLen, err := utils.GetMaxArrayValues()
+	if err != nil {
+		return nil, err
+	}
+
 	variables, err := d.client.ListLocalVariables(
 		api.EvalScope{
 			GoroutineID: goRoutineID,
@@ -91,7 +97,7 @@ func (d deb) GetLocalVariables(goRoutineID int) ([]api.Variable, error) {
 			MaxStructFields:    -1,
 			MaxVariableRecurse: 5,
 			MaxStringLen:       100,
-			MaxArrayValues:     100,
+			MaxArrayValues:     maxLen,
 		},
 	)
 

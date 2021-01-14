@@ -33,6 +33,7 @@ func LambdaWrapper(handler interface{}) interface{} {
 			os.Environ(),
 			fmt.Sprintf("DEBUG_TARGET_PID=%v", pid),
 			fmt.Sprintf("DEBUG_NAMED_PIPE=%v", ipcClient.GetName()),
+			fmt.Sprintf("LAMBDA_DEBUGGER_MAX_ARRAY_VALUES=100"),
 		)
 		if err := cmd.Start(); err != nil {
 			fmt.Println("Command start failed: ", err)

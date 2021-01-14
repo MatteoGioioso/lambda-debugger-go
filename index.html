@@ -61,7 +61,7 @@
 				<article class="tile is-child">
 					<nav class="navbar" role="navigation" aria-label="main navigation">
 						<div class="navbar-brand">
-							<a class="navbar-item" href="https://github.com/MatteoGioioso/lambda-debugger">
+							<a class="navbar-item" href="https://github.com/MatteoGioioso/lambda-debugger-go">
 								<img class="logo" src="https://imgpile.com/images/7IgDnM.png">
 							</a>
 
@@ -126,8 +126,16 @@
     let executionCounter = 0;
 
     /**
-     * @typedef {{pointers: string[], kind: string, value: string}} Variable
+     * @typedef {{
+	 * pointers: string[],
+	 * kind: string,
+	 * value: string,
+	 * name: string,
+	 * hasParent: boolean
+	 * }} Variable
+	 *
      * @typedef {Object.<string, Variable>} Variables
+	 *
      * @param {Variables} variables
      */
     function groupNestedObjects(variables) {
@@ -141,19 +149,66 @@
         return grouped
     }
 
+    /**
+	 * All values are strings so we need to convert to the correct type
+     * @param {string} type
+     * @param value
+     * @returns {number|*}
+     */
+    function convertType(type, value) {
+        switch (type) {
+            case "string":
+                return value
+            case "int":
+            case "int8":
+            case "int16":
+            case "int32":
+            case "int64":
+            case "uint":
+            case "uint8":
+            case "uint16":
+            case "uint32":
+            case "uint64":
+            case "float32":
+            case "float64":
+            case "complex64":
+            case "complex128":
+            case "byte":
+            case "rune":
+            case "uintptr":
+                return Number(value)
+			case "bool":
+			    return value === 'true';
+            default:
+                return value
+        }
+    }
+
+    /**
+	 * All the variables and nested properties are stored in a flat object.
+	 * All the properties have a "pointers" field which contains the name (if any)
+	 * of the child.
+	 * This function recursively follow all the pointers and recreate the nested object
+     * @param {Variable} obj
+     * @param {Variables} variables
+     * @param grouped
+     */
     function followPointers(obj, variables, grouped) {
         if (obj.pointers && obj.pointers.length) {
             grouped[obj.name] = {}
             for (const pointer of obj.pointers) {
-                for (const variablesKey in variables) {
-                    if (variablesKey === pointer){
-                        grouped[obj.name][pointer] = variables[pointer].value || {}
-                        followPointers(variables[pointer], variables, grouped[obj.name])
-                    }
+                // Search in the main variables object
+                const {value, kind} = variables[pointer]
+                if (value) {
+                    grouped[obj.name][pointer] = convertType(kind, value)
                 }
+                followPointers(variables[pointer], variables, grouped[obj.name])
+                delete grouped[pointer]
             }
         } else {
-            grouped[obj.name] = obj.value
+            if (!obj.hasParent) {
+                grouped[obj.name] = convertType(obj.kind, obj.value)
+            }
         }
     }
 
