@@ -100,7 +100,7 @@ func main() {
 	defer utils.OnPanicOrExit(callback)
 	utils.OnSignTerm(callback)
 
-	if err := deb.AddBreakpoint(24); err != nil {
+	if err := deb.AddBreakpoint(25); err != nil {
 		fmt.Println(err)
 		return
 	}
