@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"golang.org/x/sys/unix"
 	"os"
 	"time"
 )
@@ -21,9 +22,9 @@ func (i ipc) GetName() string {
 }
 
 func (i ipc) Create() error {
-	//if err := unix.Mkfifo(i.name, 0666); err != nil {
-	//	return err
-	//}
+	if err := unix.Mkfifo(i.name, 0666); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -42,7 +43,7 @@ func (i ipc) WaitForMessage() (string, error) {
 	//defer file.Close()
 	//
 	//return buff.String(), err
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 	return "Done", nil
 }
 

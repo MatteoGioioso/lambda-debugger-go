@@ -143,7 +143,7 @@
 
         for (const variablesKey in variables) {
             const obj = variables[variablesKey]
-            followPointers(obj, variables, grouped)
+            followPointers(obj, variables, grouped, 0)
         }
 
         return grouped
@@ -185,25 +185,32 @@
     }
 
     /**
-	 * All the variables and nested properties are stored in a flat object.
-	 * All the properties have a "pointers" field which contains the name (if any)
-	 * of the child.
-	 * This function recursively follow all the pointers and recreate the nested object
+     * All the variables and nested properties are stored in a flat object.
+     * All the properties have a "pointers" field which contains the name (if any)
+     * of the child.
+     * This function recursively follow all the pointers and recreate the nested object
      * @param {Variable} obj
      * @param {Variables} variables
      * @param grouped
+     * @param {number} recursionDepth if the recursionDepth is 0 then we can remove
+     * the objects with hasParent true
      */
-    function followPointers(obj, variables, grouped) {
+    function followPointers(obj, variables, grouped, recursionDepth) {
         if (obj.pointers && obj.pointers.length) {
             grouped[obj.name] = {}
+
             for (const pointer of obj.pointers) {
-                // Search in the main variables object
                 const {value, kind} = variables[pointer]
                 if (value) {
                     grouped[obj.name][pointer] = convertType(kind, value)
                 }
-                followPointers(variables[pointer], variables, grouped[obj.name])
+
+                followPointers(variables[pointer], variables, grouped[obj.name], recursionDepth + 1)
                 delete grouped[pointer]
+            }
+
+            if (obj.hasParent && recursionDepth === 0){
+                delete grouped[obj.name]
             }
         } else {
             if (!obj.hasParent) {

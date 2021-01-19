@@ -25,7 +25,7 @@ func NewVariables() *variables {
 }
 
 func (v variables) Add(vr api.Variable, currentLine int) {
-	v.addByType(vr, "" ,currentLine)
+	v.addByType(vr, "", currentLine)
 }
 
 func (v variables) addByType(vr api.Variable, key string, currentLine int) {
@@ -48,8 +48,8 @@ func (v variables) addPrimitive(vr api.Variable, key string, currentLine int) {
 		return
 	}
 
-	 primitive := variable{
-	 	name: vr.Name,
+	primitive := variable{
+		name:  vr.Name,
 		kind:  vr.Kind.String(),
 		value: vr.Value,
 	}
@@ -63,20 +63,12 @@ func (v variables) addPrimitive(vr api.Variable, key string, currentLine int) {
 	v[key] = primitive
 }
 
-func (v variables) addStruct(vr api.Variable, key string, currentLine int) {
+func (v variables) addStruct(vr api.Variable, initKey string, currentLine int) {
 	if len(vr.Children) == 0 {
 		return
 	}
 
-	if key == "" {
-		key = vr.RealType
-	}
-
-	rootVar := variable{
-		name:  key,
-		value: vr.Value,
-		kind:  vr.Kind.String(),
-	}
+	rootVar, key := v.initVariable(vr, initKey)
 
 	var pointers []string
 
@@ -84,8 +76,8 @@ func (v variables) addStruct(vr api.Variable, key string, currentLine int) {
 		kind := child.Kind.String()
 
 		if utils.SliceContainsString(nonPrimitiveTypes, kind) {
-			pointers = append(pointers, child.RealType)
-			v.addByType(child, child.RealType, currentLine)
+			pointers = append(pointers, child.Name)
+			v.addByType(child, child.Name, currentLine)
 		} else {
 			pointers = append(pointers, child.Name)
 			v.addByType(child, child.Name, currentLine)
@@ -96,29 +88,25 @@ func (v variables) addStruct(vr api.Variable, key string, currentLine int) {
 	v[key] = rootVar
 }
 
-func (v variables) addSlice(vr api.Variable, key string, currentLine int) {
+func (v variables) addSlice(vr api.Variable, initKey string, currentLine int) {
+	defer func() {
+		// Current workaround for delve bug: sometimes it returns incorrect length of slice
+		if err := recover(); err != nil {
+			errorConcrete := err.(error)
+			if !strings.Contains(errorConcrete.Error(), "runtime error: index out of range") {
+				panic(err)
+			}
+		}
+	}()
+
 	if len(vr.Children) == 0 {
 		return
 	}
 
-	if key == "" {
-		// If is a custom type the name should be RealType
-		// I think is better to show the full pathname instead of just the name
-		if strings.Contains(vr.RealType, ".") {
-			key = vr.RealType
-		} else {
-			key = vr.Name
-		}
-	}
-
-	rootVar := variable{
-		name:  key,
-		value: vr.Value,
-		kind:  vr.Kind.String(),
-	}
+	rootVar, key := v.initVariable(vr, initKey)
+	realLength := v.getLength(vr)
 
 	var pointers []string
-	realLength := v.getLength(vr)
 
 	for i := 0; i < realLength; i++ {
 		child := vr.Children[i]
@@ -141,29 +129,20 @@ func (v variables) addSlice(vr api.Variable, key string, currentLine int) {
 	v[key] = rootVar
 }
 
-func (v variables) addMap(vr api.Variable, key string, currentLine int) {
+func (v variables) addMap(vr api.Variable, initKey string, currentLine int) {
 	if len(vr.Children) == 0 {
 		return
 	}
 
-	if key == "" {
-		key = vr.Name
-	}
-
-	rootVar := variable{
-		name:  key,
-		value: vr.Value,
-		kind:  vr.Kind.String(),
-	}
-
-	var pointers []string
+	rootVar, key := v.initVariable(vr, initKey)
 	realLength := v.getLength(vr)
 
+	var pointers []string
 	var childKey string
 
 	// We need to double the length of the map because the keys are included
 	// in the children array
-	for i := 0; i < realLength * 2; i++ {
+	for i := 0; i < realLength*2; i++ {
 		// In Map's children the first value is the key of the map
 		// hence even indexes are going to be keys and odd values
 		if i%2 == 0 {
@@ -196,4 +175,21 @@ func (v variables) getLength(vr api.Variable) int {
 	}
 
 	return realLength
+}
+
+func (v variables) initVariable(vr api.Variable, key string) (variable, string) {
+	rootVar := variable{
+		value: vr.Value,
+		kind:  vr.Kind.String(),
+	}
+
+	if key == "" {
+		key = vr.Name
+		rootVar.name = key
+	} else {
+		rootVar.name = key
+		rootVar.hasParent = true
+	}
+
+	return rootVar, key
 }

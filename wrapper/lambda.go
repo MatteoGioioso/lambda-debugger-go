@@ -17,9 +17,6 @@ var (
 
 func LambdaWrapper(handler interface{}) interface{} {
 	return func() {
-		if err := ipcClient.Create(); err != nil {
-			fmt.Println("ipcClient creation failed: ", err)
-		}
 		pid := os.Getpid()
 		if err := utils.GoBuild("main"); err != nil {
 			fmt.Println("Go build failed: ", err)
