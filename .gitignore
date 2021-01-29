@@ -16,3 +16,11 @@
 # vendor/
 test/
 tmp/
+deploy.sh
+Dockerfile
+Makefile
+request.http
+template.yaml
+exampleFunction
+.dockerignore
+.aws-sam

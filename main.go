@@ -100,7 +100,7 @@ func main() {
 	defer utils.OnPanicOrExit(callback)
 	utils.OnSignTerm(callback)
 
-	if err := deb.AddBreakpoint(26); err != nil {
+	if err := deb.AddBreakpoint(9); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -108,6 +108,7 @@ func main() {
 
 	state := deb.Continue()
 	recordExecution(deb, state.CurrentThread.GoroutineID)
+	log.Info("Done recording")
 
 	stepsDTO := debugger.ToStepsDTO(*steps)
 	filesDTO := debugger.ToFilesDTO(*files)

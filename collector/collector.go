@@ -4,14 +4,21 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"lambda-debugger-go/debugger"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
-type collector struct{}
+type collector struct{
+	outputPath string
+	filePath string
+}
 
 func New() *collector {
-	return &collector{}
+	return &collector{
+		outputPath: os.Getenv("LAMBDA_DEBUGGER_OUTPUT_PATH"),
+		filePath:   os.Getenv("LAMBDA_DEBUGGER_FILE_PATH"),
+	}
 }
 
 func (c collector) InjectDebuggerOutputIntoHtml(steps debugger.StepsDTO, files debugger.FilesDTO) error {
@@ -24,12 +31,7 @@ func (c collector) InjectDebuggerOutputIntoHtml(steps debugger.StepsDTO, files d
 		return err
 	}
 
-	htmlFilePath, err := filepath.Abs("../index.html")
-	if err != nil {
-		return err
-	}
-
-	htmlBytes, err := ioutil.ReadFile(htmlFilePath)
+	htmlBytes, err := ioutil.ReadFile(filepath.Join(c.filePath, "index.html"))
 	if err != nil {
 		return err
 	}
@@ -38,7 +40,7 @@ func (c collector) InjectDebuggerOutputIntoHtml(steps debugger.StepsDTO, files d
 		Replace(string(htmlBytes), "//---DEBUG.JSON---//", string(stepsDTOBytes), 1)
 	htmlWithStepsAndFiles := strings.
 		Replace(htmlWithSteps, "//---FILES.JSON---//", string(filesDTOBytes), 1)
-	htmlFileOutPath, err := filepath.Abs("../tmp/index.html")
+	htmlFileOutPath, err := filepath.Abs(filepath.Join(c.outputPath, "index.html"))
 
 	if err := ioutil.WriteFile(htmlFileOutPath, []byte(htmlWithStepsAndFiles), 0700); err != nil {
 		return err
